@@ -1,6 +1,285 @@
+#include <cstddef>
+#include <cassert>
+#include <algorithm>
+#include <vector>
+#include <queue>
+
+using umi = size_t;
+using s32 = int32_t;
+
+// TODO: Check if these are actually right
+
+constexpr s32 MAX_HEIGHT     = INT32_MAX; 
+constexpr s32 MAX_NODE_COUNT = MAX_HEIGHT / 2;
+constexpr s32 INF_EXCESS     = INT32_MAX;
+
+struct flow_edge
+{
+    umi dst_node     = 0;
+    umi reverse_edge = 0;
+
+    s32 capacity = 0;
+    s32 flow     = 0;
+};
+
+struct flow_node
+{
+    std::vector<flow_edge> outgoing_edges;
+
+    umi next_edge_to_push = 0;
+
+    s32 excess = 0;
+    s32 height = 0;
+};
+
+struct flow_graph
+{
+    std::vector<flow_node> nodes;
+
+    std::queue<flow_node *> active_nodes;
+};
+
+flow_node *
+get_node(flow_graph *graph, umi index)
+{
+    flow_node *result = nullptr;
+
+    if (index < graph->nodes.size())
+    {
+        result = &graph->nodes[index];
+    }
+
+    return result;
+}
+
+flow_edge *
+get_edge(flow_node *node, umi index)
+{
+    flow_edge *result = nullptr;
+
+    if (index < node->outgoing_edges.size())
+    {
+        result = &node->outgoing_edges[index];
+    }
+
+    return result;
+}
+
+s32
+get_remaining_capacity(flow_edge *edge)
+{
+    assert(edge->flow <= edge->capacity);
+
+    s32 result = edge->capacity - edge->flow;
+
+    return result;
+}
+
+void
+add_edge_pair(flow_graph *graph, umi src, umi dst, s32 capacity)
+{
+    flow_node *src_node = get_node(graph, src);
+    flow_node *dst_node = get_node(graph, dst);
+
+    umi edge_to_dst_index = src_node->outgoing_edges.size();
+    umi edge_to_src_index = dst_node->outgoing_edges.size();
+
+    flow_edge edge_to_dst;
+    edge_to_dst.dst_node = dst;
+    edge_to_dst.capacity = capacity;
+    edge_to_dst.reverse_edge = edge_to_src_index;
+
+    flow_edge edge_to_src;
+    edge_to_src.dst_node = src;
+    edge_to_src.capacity = 0;
+    edge_to_src.reverse_edge = edge_to_dst_index;
+
+    src_node->outgoing_edges.push_back(edge_to_dst);
+    dst_node->outgoing_edges.push_back(edge_to_src);
+}
+
+void
+add_node(flow_graph *graph)
+{
+    flow_node node;
+
+    graph->nodes.push_back(node);
+}
+
+flow_edge *
+get_reverse_edge(flow_graph *graph, flow_edge *edge)
+{
+    flow_node *dst_node = get_node(graph, edge->dst_node);
+    
+    flow_edge *result = get_edge(dst_node, edge->reverse_edge);
+
+    return result;
+}
+
+void
+clear_active_node_queue(flow_graph *graph)
+{
+    std::queue<flow_node *> empty;
+    std::swap(graph->active_nodes, empty);
+}
+
+void
+init_temp_data(flow_graph *graph)
+{
+    clear_active_node_queue(graph);
+
+    for (flow_node &node : graph->nodes)
+    {
+        node.next_edge_to_push = 0;
+
+        node.excess = 0;
+        node.height = 0;
+
+        for (flow_edge &edge : node.outgoing_edges)
+        {
+            edge.flow = 0;
+        }
+    }
+}
+
+void
+add_active_node(flow_graph *graph, flow_node *node)
+{
+    graph->active_nodes.push(node);
+}
+
+flow_node *
+pop_active_node(flow_graph *graph)
+{
+    flow_node *result = graph->active_nodes.front();
+
+    graph->active_nodes.pop();
+
+    return result;
+}
+
+void
+push_along_edge(flow_graph *graph, flow_node *node, flow_edge *edge)
+{
+    flow_node *src = node;
+    flow_node *dst = get_node(graph, edge->dst_node);
+
+    flow_edge *edge_from_src = edge;
+    flow_edge *edge_from_dst = get_reverse_edge(graph, edge);
+
+    int to_push = std::min(src->excess, get_remaining_capacity(edge));
+
+    if (to_push > 0)
+    {
+        bool dst_was_inactive = (dst->excess == 0);
+        
+        src->excess -= to_push;
+        dst->excess += to_push;
+
+        edge_from_src->flow += to_push;
+        edge_from_dst->flow -= to_push;
+
+        if (dst_was_inactive)
+        {
+            add_active_node(graph, dst);
+        }
+    }
+}
+
+void
+relabel(flow_node *node)
+{
+    // TODO: Smarter implementation
+
+    ++node->height;
+}
+
+void
+discharge(flow_graph *graph, flow_node *node)
+{
+    while (node->excess > 0)
+    {
+        if (node->next_edge_to_push < node->outgoing_edges.size())
+        {
+            flow_edge *edge = get_edge(node, node->next_edge_to_push);
+
+            push_along_edge(graph, node, edge);
+
+            ++node->next_edge_to_push;
+        }
+        else
+        {
+            relabel(node);
+
+            node->next_edge_to_push = 0;
+        }
+    }
+}
+
+s32
+run_push_relabel(flow_graph *graph, umi src, umi dst)
+{
+    assert(graph->nodes.size() <= MAX_NODE_COUNT);
+
+    init_temp_data(graph);
+
+    flow_node *src_node = get_node(graph, src);
+    flow_node *dst_node = get_node(graph, dst);
+
+    src_node->excess = INF_EXCESS;
+    src_node->height = (s32)graph->nodes.size();
+
+    for (flow_edge &edge : src_node->outgoing_edges)
+    {
+        push_along_edge(graph, src_node, &edge);
+    }
+
+    while (!graph->active_nodes.empty())
+    {
+        flow_node *node = pop_active_node(graph);
+
+        if (node != src_node && node != dst_node)
+        {
+            discharge(graph, node);
+        }
+    }
+
+    s32 max_flow = 0;
+
+    for (flow_edge &edge : src_node->outgoing_edges)
+    {
+        max_flow += edge.flow;
+    }
+
+    return max_flow;
+}
 
 int
 main()
 {
+    flow_graph graph;
+
+    // NOTE: Copied the graph from wikipedia C referrence implementation
+
+    s32 node_count = 6;
+
+    for (s32 index = 0;
+        index < node_count;
+        ++index)
+    {
+        add_node(&graph);   
+    }
+
+    add_edge_pair(&graph, 0, 1, 2);
+    add_edge_pair(&graph, 0, 2, 9);
+    add_edge_pair(&graph, 1, 2, 1);
+    add_edge_pair(&graph, 1, 3, 0);
+    add_edge_pair(&graph, 1, 4, 0);
+    add_edge_pair(&graph, 2, 4, 7);
+    add_edge_pair(&graph, 3, 5, 7);
+    add_edge_pair(&graph, 4, 5, 4);
+
+    s32 flow = run_push_relabel(&graph, 0, 5);
+
     return 0;
 }
