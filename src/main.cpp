@@ -186,6 +186,22 @@ push_along_edge(flow_graph *graph, flow_node *node, flow_edge *edge)
     }
 }
 
+bool
+can_push_along_edge(flow_graph *graph, flow_node *node, flow_edge *edge)
+{
+    flow_node *src = node;
+    flow_node *dst = get_node(graph, edge->dst_node);
+
+    bool result = false;
+
+    if (get_remaining_capacity(edge) > 0 && src->height > dst->height)
+    {
+        result = true;
+    }
+
+    return result;
+}
+
 void
 relabel(flow_node *node)
 {
@@ -203,7 +219,10 @@ discharge(flow_graph *graph, flow_node *node)
         {
             flow_edge *edge = get_edge(node, node->next_edge_to_push);
 
-            push_along_edge(graph, node, edge);
+            if (can_push_along_edge(graph, node, edge))
+            {
+                push_along_edge(graph, node, edge);
+            }
 
             ++node->next_edge_to_push;
         }
