@@ -81,6 +81,9 @@ add_edge_pair(flow_graph *graph, umi src, umi dst, s32 capacity)
     flow_node *src_node = get_node(graph, src);
     flow_node *dst_node = get_node(graph, dst);
 
+    assert(src_node != nullptr);
+    assert(dst_node != nullptr);
+
     umi edge_to_dst_index = src_node->outgoing_edges.size();
     umi edge_to_src_index = dst_node->outgoing_edges.size();
 
@@ -203,11 +206,24 @@ can_push_along_edge(flow_graph *graph, flow_node *node, flow_edge *edge)
 }
 
 void
-relabel(flow_node *node)
+relabel(flow_graph *graph, flow_node *node)
 {
-    // TODO: Smarter implementation
+    s32 lowest_neighbor = MAX_HEIGHT;
 
-    ++node->height;
+    for (flow_edge &edge : node->outgoing_edges)
+    {
+        if (get_remaining_capacity(&edge))
+        {
+            flow_node *node = get_node(graph, edge.dst_node);
+
+            lowest_neighbor = std::min(lowest_neighbor, node->height);
+        }
+    }
+
+    if (lowest_neighbor < MAX_HEIGHT)
+    {
+        node->height = lowest_neighbor + 1;
+    }
 }
 
 void
@@ -228,7 +244,7 @@ discharge(flow_graph *graph, flow_node *node)
         }
         else
         {
-            relabel(node);
+            relabel(graph, node);
 
             node->next_edge_to_push = 0;
         }
@@ -272,6 +288,8 @@ run_push_relabel(flow_graph *graph, umi src, umi dst)
 
     return max_flow;
 }
+
+// TODO: Lower or increase the capacity along an edge
 
 int
 main()
