@@ -1,11 +1,10 @@
+#include "ap_dynamic_flow_core.h"
+
 #include <cstddef>
 #include <cassert>
 #include <algorithm>
 #include <vector>
 #include <queue>
-
-using umi = size_t;
-using s32 = int32_t;
 
 // TODO: Check if these are actually right
 
