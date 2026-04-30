@@ -1,0 +1,19 @@
+{
+  "maxflow": 17,
+  "cut_capacity": 17,
+  "source_side": [
+    0
+  ],
+  "cut_edges": [
+    [
+      0,
+      2,
+      5
+    ],
+    [
+      0,
+      4,
+      12
+    ]
+  ]
+}
