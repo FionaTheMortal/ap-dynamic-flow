@@ -1,10 +1,12 @@
 #include "ap_dynamic_flow_core.h"
+#include "ap_dynamic_flow_parser.h"
 
 #include <cstddef>
 #include <cassert>
 #include <algorithm>
 #include <vector>
 #include <queue>
+#include <iostream>
 
 // TODO: Check if these are actually right
 
@@ -36,6 +38,11 @@ struct flow_graph
     std::vector<flow_node> nodes;
 
     std::queue<flow_node *> active_nodes;
+
+    s32 src_node = 0;
+    s32 dst_node = 0;
+
+    s32 expected_max_flow = 0;
 };
 
 flow_node *
@@ -290,11 +297,65 @@ run_push_relabel(flow_graph *graph, umi src, umi dst)
 
 // TODO: Lower or increase the capacity along an edge
 
-int
-main()
+s32
+get_load_graph_node_count(loaded_graph *graph)
 {
-    flow_graph graph;
+    s32 result = 0;
 
+    for (loaded_edge &edge : graph->edges)
+    {
+        s32 edge_max_node_index = std::max(edge.src_node, edge.dst_node);
+        s32 edge_min_node_count = edge_max_node_index + 1;
+
+        result = std::max(result, edge_min_node_count);
+    }
+
+    return result;
+}
+
+void
+translate_loaded_graph_to_flow_graph(loaded_graph *loaded, flow_graph *flow)
+{
+    s32 node_count = get_load_graph_node_count(loaded);
+
+    for (s32 index = 0;
+        index < node_count;
+        ++index)
+    {
+        add_node(flow);   
+    }
+
+    for (loaded_edge &edge : loaded->edges)
+    {
+        add_edge_pair(flow, edge.src_node, edge.dst_node, edge.capacity);
+    }
+
+    flow->dst_node = loaded->dst_node;
+    flow->src_node = loaded->src_node;
+
+    flow->expected_max_flow = loaded->max_flow;
+}
+
+bool
+load_graph_from_dir(flow_graph *graph, std::string_view dir)
+{
+    bool success = false;
+
+    loaded_graph loaded = load_graph(dir);
+
+    if (loaded.is_loaded)
+    {
+        translate_loaded_graph_to_flow_graph(&loaded, graph);
+
+        success = true;
+    }
+
+    return success;
+}
+
+void
+init_test_graph_directly(flow_graph *graph)
+{
     // NOTE: Copied the graph from wikipedia C referrence implementation
 
     s32 node_count = 6;
@@ -303,19 +364,58 @@ main()
         index < node_count;
         ++index)
     {
-        add_node(&graph);   
+        add_node(graph);   
     }
 
-    add_edge_pair(&graph, 0, 1, 2);
-    add_edge_pair(&graph, 0, 2, 9);
-    add_edge_pair(&graph, 1, 2, 1);
-    add_edge_pair(&graph, 1, 3, 0);
-    add_edge_pair(&graph, 1, 4, 0);
-    add_edge_pair(&graph, 2, 4, 7);
-    add_edge_pair(&graph, 3, 5, 7);
-    add_edge_pair(&graph, 4, 5, 4);
+    add_edge_pair(graph, 0, 1, 2);
+    add_edge_pair(graph, 0, 2, 9);
+    add_edge_pair(graph, 1, 2, 1);
+    add_edge_pair(graph, 1, 3, 0);
+    add_edge_pair(graph, 1, 4, 0);
+    add_edge_pair(graph, 2, 4, 7);
+    add_edge_pair(graph, 3, 5, 7);
+    add_edge_pair(graph, 4, 5, 4);
 
-    s32 flow = run_push_relabel(&graph, 0, 5);
+    graph->src_node = 0;
+    graph->dst_node = 5;
+    graph->expected_max_flow = 4;
+}
+
+int
+main()
+{
+    flow_graph graph;
+
+    bool load_success = false;
+    bool load_file = true;
+
+    if (load_file)
+    {
+        if (load_graph_from_dir(&graph, "small_graphs/graph_000"))
+        {
+            load_success = true;
+        }
+    }
+    else
+    {
+        init_test_graph_directly(&graph);
+
+        load_success = true;
+    }
+
+    if (load_success)
+    {
+        s32 flow = run_push_relabel(&graph, graph.src_node, graph.dst_node);
+
+        if (flow == graph.expected_max_flow)
+        {
+            std::cout << "Success!" << std::endl;
+        }
+        else
+        {
+            std::cout << "Calculated max flow doesn't match expected value." << std::endl;
+        }
+    }
 
     return 0;
 }

@@ -6,7 +6,7 @@
             "type": "cppvsdbg",
             "request": "launch",
             "program": "${command:cmake.launchTargetPath}",
-            "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceFolder}/data",
             "preLaunchTask": "CMake: build"
         }
     ]
