@@ -391,7 +391,7 @@ main()
 
     if (load_file)
     {
-        if (load_graph_from_dir(&graph, "small_graphs/graph_000"))
+        if (load_graph_from_dir(&graph, "graphs/graph_000001"))
         {
             load_success = true;
         }
@@ -415,6 +415,10 @@ main()
         {
             std::cout << "Calculated max flow doesn't match expected value." << std::endl;
         }
+    }
+    else
+    {
+        std::cout << "Failed to load graph." << std::endl;
     }
 
     return 0;

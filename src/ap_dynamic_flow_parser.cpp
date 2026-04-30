@@ -52,13 +52,19 @@ load_graph_meta_json(loaded_graph *graph, fs::path path)
 }
 
 bool
-load_graph_edges_csv(loaded_graph *graph, fs::path path)
+load_graph_edges_csv(loaded_graph *graph, fs::path path, bool has_header = true)
 {
     bool success = false;
 
     try 
     {
         io::CSVReader<3> csv_reader(path.string());
+
+        if (has_header) 
+        {
+            std::string c1, c2, c3;
+            csv_reader.read_row(c1, c2, c3);
+        }
 
         s32 src_node = 0;
         s32 dst_node = 0;
