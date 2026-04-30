@@ -3,8 +3,11 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cassert>
 
 using umi = size_t;
 using s32 = int32_t;
+
+#define TODO_IMPLEMENT assert(false)
 
 #endif
